@@ -12,7 +12,10 @@ option(FORMULA_WEIRD_STRICT_WARNINGS "Enable strict compiler warnings" ON)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
 
 if(FORMULA_WEIRD_ENABLE_OPENMP)
-    find_package(OpenMP REQUIRED COMPONENTS CXX)
+    find_package(OpenMP QUIET COMPONENTS CXX)
+    if(NOT OpenMP_CXX_FOUND)
+        message(WARNING "OpenMP was requested but not found; building without OpenMP support")
+    endif()
 endif()
 
 set(FORMULA_WEIRD_SOURCES
@@ -44,7 +47,7 @@ target_link_libraries(formula_weird_engine
         Eigen3::Eigen
 )
 
-if(FORMULA_WEIRD_ENABLE_OPENMP)
+if(FORMULA_WEIRD_ENABLE_OPENMP AND OpenMP_CXX_FOUND)
     target_link_libraries(formula_weird_engine PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
