@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
 
 namespace formula_weird {
 namespace {
@@ -37,7 +36,7 @@ StabilityManager::StabilityManager(double energy_growth_tolerance)
 
 void StabilityManager::snapshot(const SystemState& state) {
     if (!finiteState(state)) return;
-    if (has_snapshot_ && state.total_energy >= baseline_energy_) return;
+    // Keep the latest accepted checkpoint, not the lowest-energy historical state.
     last_stable_state_ = state;
     baseline_energy_ = state.total_energy;
     has_snapshot_ = true;
