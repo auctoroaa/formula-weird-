@@ -21,6 +21,10 @@ concurrency:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        openmp: [ON, OFF]
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -34,7 +38,7 @@ jobs:
         run: >-
           cmake -S . -B build
           -DCMAKE_BUILD_TYPE=Debug
-          -DFORMULA_WEIRD_ENABLE_OPENMP=OFF
+          -DFORMULA_WEIRD_ENABLE_OPENMP=${{ matrix.openmp }}
           -DFORMULA_WEIRD_STRICT_WARNINGS=ON
           -DBUILD_TESTING=ON
 
