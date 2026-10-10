@@ -14,11 +14,15 @@ bool finiteState(const SystemState& state) {
     for (const auto& value : state.velocities) if (!value.allFinite()) return false;
     for (const auto& value : state.accelerations) if (!value.allFinite()) return false;
     for (double mass : state.nodal_masses) if (!std::isfinite(mass) || mass < 0.0) return false;
-    if (!state.positions.empty()) {
-        const auto n = state.positions.size();
-        if (state.velocities.size() != n || state.accelerations.size() != n ||
-            state.nodal_masses.size() != n) return false;
-    }
+
+    // Phase-space arrays must either all be absent (constitutive-only checkpoint)
+    // or describe the same number of nodes. This also rejects orphaned velocity,
+    // acceleration, or mass arrays when positions is empty.
+    const auto node_count = state.positions.size();
+    if (state.velocities.size() != node_count ||
+        state.accelerations.size() != node_count ||
+        state.nodal_masses.size() != node_count) return false;
+
     for (const auto& shard : state.debris_shards) {
         if (!shard.position.allFinite() || !shard.velocity.allFinite() ||
             !std::isfinite(shard.mass) || shard.mass < 0.0 ||
