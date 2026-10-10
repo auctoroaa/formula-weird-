@@ -58,9 +58,17 @@ int main() {
     assert(recovered.element_eroded && recovered.debris_shards.size() == 1);
     assert(stability.checkAndRecover(std::numeric_limits<double>::quiet_NaN(), recovered));
 
-    // A malformed phase-space snapshot must not replace the last valid checkpoint.
+    // Invalid checkpoints must never replace the last valid full-state checkpoint.
     SystemState invalid = state;
     invalid.velocities.clear();
+    invalid.total_energy = 1.0;
+    stability.snapshot(invalid);
+    assert(stability.checkAndRecover(40.0, recovered));
+    assert(recovered.positions.size() == 1 && recovered.positions[0].x() == 1.0);
+
+    // Orphaned kinematic arrays must also be rejected when positions is empty.
+    invalid = state;
+    invalid.positions.clear();
     invalid.total_energy = 1.0;
     stability.snapshot(invalid);
     assert(stability.checkAndRecover(40.0, recovered));
