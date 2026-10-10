@@ -61,3 +61,25 @@ if(FORMULA_WEIRD_STRICT_WARNINGS)
         )
     endif()
 endif()
+
+include(CTest)
+if(BUILD_TESTING)
+    add_executable(remaining_modules_tests
+        tests/remaining_modules_tests.cpp
+        src/debris/debris.cpp
+        src/stability/stability.cpp
+        src/time/time_integration.cpp
+        src/contact/contact_mapping.cpp
+    )
+    target_compile_features(remaining_modules_tests PRIVATE cxx_std_17)
+    target_include_directories(remaining_modules_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(remaining_modules_tests PRIVATE Eigen3::Eigen)
+    if(FORMULA_WEIRD_STRICT_WARNINGS)
+        if(MSVC)
+            target_compile_options(remaining_modules_tests PRIVATE /W4 /permissive-)
+        else()
+            target_compile_options(remaining_modules_tests PRIVATE -Wall -Wextra -Wpedantic -Wconversion -Wshadow)
+        endif()
+    endif()
+    add_test(NAME remaining_modules_tests COMMAND remaining_modules_tests)
+endif()
