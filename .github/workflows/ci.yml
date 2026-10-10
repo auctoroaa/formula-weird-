@@ -1,0 +1,48 @@
+name: C++ CI
+
+on:
+  push:
+    branches:
+      - main
+      - production-grade-remaining-modules
+      - phase-space-stability-improvements
+  pull_request:
+    branches:
+      - main
+      - production-grade-remaining-modules
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpp-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Install Eigen
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libeigen3-dev
+
+      - name: Configure
+        run: >-
+          cmake -S . -B build
+          -DCMAKE_BUILD_TYPE=Debug
+          -DFORMULA_WEIRD_ENABLE_OPENMP=OFF
+          -DFORMULA_WEIRD_STRICT_WARNINGS=ON
+          -DBUILD_TESTING=ON
+
+      - name: Build all targets
+        run: cmake --build build --parallel 2
+
+      - name: Run regression tests
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Run engine smoke test
+        run: ./build/formula_weird_engine
