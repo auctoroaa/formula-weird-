@@ -1,6 +1,8 @@
 #ifndef FORMULA_WEIRD_STABILITY_HPP
 #define FORMULA_WEIRD_STABILITY_HPP
 
+#include "formula_weird/debris/debris.hpp"
+
 #include <Eigen/Dense>
 #include <vector>
 
@@ -10,23 +12,31 @@ struct SystemState {
     std::vector<Eigen::Matrix3d> stress_tensors;
     std::vector<double> plastic_strains;
     std::vector<double> temperatures;
+    std::vector<Eigen::Vector3d> positions;
+    std::vector<Eigen::Vector3d> velocities;
+    std::vector<Eigen::Vector3d> accelerations;
+    std::vector<double> nodal_masses;
+    bool element_eroded = false;
+    std::vector<DebrisShard> debris_shards;
     double total_energy = 0.0;
 };
 
 class StabilityManager {
 public:
-    // tolerance is a non-negative relative growth allowance; a small absolute
-    // floor prevents near-zero baselines from causing numerical false alarms.
+    // Absolute energy-growth allowance scaled by max(1, |checkpoint energy|).
     explicit StabilityManager(double energy_growth_tolerance = 2.0);
 
-    // Stores the lowest-energy finite state observed (the recovery checkpoint).
+    // Full-state checkpoint. Rejects non-finite values and inconsistent phase-space sizes.
+    void snapshot(const SystemState& state);
+
+    // Compatibility overload for constitutive-only callers; kinematic fields remain empty.
     void snapshot(const std::vector<Eigen::Matrix3d>& stress,
                   const std::vector<double>& strains,
                   const std::vector<double>& temps,
                   double current_energy);
 
-    // Returns true and restores state_out when energy is non-finite or exceeds
-    // the checkpoint by the configured relative allowance plus absolute floor.
+    // Returns true and copies the last checkpoint when energy is non-finite or
+    // exceeds its checkpoint by the configured allowance.
     bool checkAndRecover(double current_energy, SystemState& state_out);
 
 private:

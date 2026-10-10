@@ -5,12 +5,30 @@
 
 namespace formula_weird {
 namespace {
-bool finiteState(const std::vector<Eigen::Matrix3d>& stress,
-                 const std::vector<double>& strains,
-                 const std::vector<double>& temps) {
-    for (const auto& tensor : stress) if (!tensor.allFinite()) return false;
-    for (double value : strains) if (!std::isfinite(value)) return false;
-    for (double value : temps) if (!std::isfinite(value)) return false;
+bool finiteState(const SystemState& state) {
+    if (!std::isfinite(state.total_energy)) return false;
+    for (const auto& tensor : state.stress_tensors) if (!tensor.allFinite()) return false;
+    for (double value : state.plastic_strains) if (!std::isfinite(value) || value < 0.0) return false;
+    for (double value : state.temperatures) if (!std::isfinite(value) || value < 0.0) return false;
+    for (const auto& value : state.positions) if (!value.allFinite()) return false;
+    for (const auto& value : state.velocities) if (!value.allFinite()) return false;
+    for (const auto& value : state.accelerations) if (!value.allFinite()) return false;
+    for (double mass : state.nodal_masses) if (!std::isfinite(mass) || mass < 0.0) return false;
+
+    // Phase-space arrays must either all be absent (constitutive-only checkpoint)
+    // or describe the same number of nodes. This also rejects orphaned velocity,
+    // acceleration, or mass arrays when positions is empty.
+    const auto node_count = state.positions.size();
+    if (state.velocities.size() != node_count ||
+        state.accelerations.size() != node_count ||
+        state.nodal_masses.size() != node_count) return false;
+
+    for (const auto& shard : state.debris_shards) {
+        if (!shard.position.allFinite() || !shard.velocity.allFinite() ||
+            !std::isfinite(shard.mass) || shard.mass < 0.0 ||
+            !std::isfinite(shard.age) || shard.age < 0.0 ||
+            !std::isfinite(shard.lifetime) || shard.lifetime <= 0.0) return false;
+    }
     return true;
 }
 }
@@ -20,19 +38,24 @@ StabilityManager::StabilityManager(double energy_growth_tolerance)
                      ? std::max(0.0, energy_growth_tolerance) : 2.0),
       baseline_energy_(0.0), has_snapshot_(false) {}
 
+void StabilityManager::snapshot(const SystemState& state) {
+    if (!finiteState(state)) return;
+    // Keep the latest accepted checkpoint, not the lowest-energy historical state.
+    last_stable_state_ = state;
+    baseline_energy_ = state.total_energy;
+    has_snapshot_ = true;
+}
+
 void StabilityManager::snapshot(const std::vector<Eigen::Matrix3d>& stress,
                                 const std::vector<double>& strains,
                                 const std::vector<double>& temps,
                                 double current_energy) {
-    if (!std::isfinite(current_energy) || !finiteState(stress, strains, temps)) return;
-    if (has_snapshot_ && current_energy >= baseline_energy_) return;
-
-    last_stable_state_.stress_tensors = stress;
-    last_stable_state_.plastic_strains = strains;
-    last_stable_state_.temperatures = temps;
-    last_stable_state_.total_energy = current_energy;
-    baseline_energy_ = current_energy;
-    has_snapshot_ = true;
+    SystemState state;
+    state.stress_tensors = stress;
+    state.plastic_strains = strains;
+    state.temperatures = temps;
+    state.total_energy = current_energy;
+    snapshot(state);
 }
 
 bool StabilityManager::checkAndRecover(double current_energy, SystemState& state_out) {
