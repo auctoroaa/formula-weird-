@@ -21,6 +21,10 @@ set(FORMULA_WEIRD_SOURCES
     src/thermo/thermodynamic_consistency.cpp
     src/failure/failure.cpp
     src/rigid/rigid_body_sync.cpp
+    src/debris/debris.cpp
+    src/stability/stability.cpp
+    src/time/time_integration.cpp
+    src/contact/contact_mapping.cpp
 )
 
 add_executable(formula_weird_engine
